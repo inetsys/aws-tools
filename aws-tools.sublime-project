@@ -1,0 +1,29 @@
+{
+	"folders":
+	[
+		{
+			"folder_exclude_patterns": [
+				".git"
+			],
+			"path": "."
+		}
+	],
+	"settings":
+	{
+		"detect_indentation": true,
+		"tab_size": 4,
+		"todo":
+		{
+			"file_exclude_patterns":
+			[
+				"*.sublime-workspace"
+			],
+			"folder_exclude_patterns":
+			[
+				".git"
+			]
+		},
+		"translate_tabs_to_spaces": true,
+		"trim_trailing_white_space_on_save": true
+	}
+}

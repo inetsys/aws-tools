@@ -1,13 +1,14 @@
 require 'logger'
 require 'json'
 require 'syslog/logger'
-require 'colored'
-require 'logger/colors'
 require 'fileutils'
 require 'aws-sdk'
 require_relative 'helpers'
 
 include AWSTools
+
+# do not color if running from cfn-init
+require 'logger/colors' unless `ps aux | grep cfn-init | grep -v grep` != ""
 
 @logger = Logger.new(STDOUT)
 @logger.formatter = proc do |severity, datetime, progname, msg|

@@ -50,8 +50,11 @@ def ec2_instance_id
   File.read('/etc/aws_instance_id').strip
 end
 
-def ec2_stackname
+def ec2_availability_zone
+  File.read('/etc/aws_az').strip
+end
 
+def ec2_stackname
   tags = @ec2.describe_tags({
     filters: [{
       name: "resource-id",
@@ -64,7 +67,6 @@ def ec2_stackname
   rescue
     raise "There is no aws:cloudformation:stack-name tag in this instance #{ec2_instance_id}"
   end
-
 end
 
 def ec2_environment
@@ -80,5 +82,4 @@ def ec2_environment
   rescue
     raise "There is no Environment tag in this instance #{ec2_instance_id}"
   end
-
 end

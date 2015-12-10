@@ -18,9 +18,16 @@ else
   @regionaws = 'eu-central-1'
 end
 
+@logger = Logger.new(STDOUT)
+@logger.formatter = proc do |severity, datetime, progname, msg|
+   "#{progname} - #{severity}: #{msg}\n"
+end
+@logger.level = Logger::INFO
+
 ::Aws.config.update({
   region: @regionaws,
-  credentials: @credentials
+  credentials: @credentials,
+  logger: @logger
 })
 
 @ec2 = ::Aws::EC2::Client.new

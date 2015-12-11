@@ -129,7 +129,7 @@ def ebs_tag_volume(volume_id, name, mount_point)
             { key: "Cliente", value: ec2_base_tags[:cliente], },
             { key: "Concepto", value: ec2_base_tags[:concepto], },
             { key: "Mount point", value: mount_point, },
-            { key: "AutoscalingGroup", value: ec2_autoscaling_group, },
+            { key: "StackName", value: ec2_stackname, },
         ],
     })
 end
@@ -142,8 +142,8 @@ def ebs_find_available_volume(name)
                 values: [name],
             },
             {
-                name: "tag:AutoscalingGroup",
-                values: [ec2_autoscaling_group]
+                name: "tag:StackName",
+                values: [ec2_stackname]
             },
             {
                 name: "tag:Environment",
@@ -189,10 +189,6 @@ end
 
 def ec2_availability_zone
     File.read('/etc/aws_az').strip
-end
-
-def ec2_autoscaling_group
-    File.read('/etc/aws_autoscaling_group').strip
 end
 
 def ec2_stackname

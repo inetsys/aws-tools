@@ -67,3 +67,11 @@ IAM Instance Profile.
       ],
       "Resource": "*"
     }
+
+## Test local
+
+Some tasks can be run outside an EC2 instance, in that case the credentials
+are taken from two environment variables:
+
+* AWS_PROFILE
+* AWS_REGION

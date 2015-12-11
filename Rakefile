@@ -30,83 +30,83 @@ namespace :chef do
 end
 
 namespace :ec2 do
-    desc 'Attach last web /var/www snapshot EBS'
     namespace :ebs do
+        desc 'Attach /var/www EBS volume.
+    In order, first searches for an existing EBS volume detached from former EC2 instance,
+    that should be shutting down at least. If not, searches for the most recent backup in
+    snapshots. If this also fails, creates an empty new EBS volume'
         task :attach do
             @logger.progname = 'EC2'
 
             if !is_amazon_linux
-                @logger.error "This is not an EC2 instance"
-                next
+                abort "This is not an EC2 instance"
             end
 
-            snapshots = @ec2.describe_snapshots({
-                filters: [
-                    {
-                        name: "tag:Name",
-                        values: ["Backup data disk webserver"],
-                    },
-                ],
-            }).snapshots.sort {|x,y| x.start_time <=> y.start_time}
-            snapshot_id = snapshots.last.snapshot_id
+            # Search for an available web data EBS volume, searching by name
+            # and the same Autoscaling Group as the EC2 instance
+            volume_id = ebs_find_available_volume("Web server data disk")
 
-            volume_id = @ec2.create_volume({
-                snapshot_id: snapshot_id,
-                availability_zone: ec2_availability_zone,
-                volume_type: 'gp2',
-            }).volume_id
+            if volume_id.nil?
+                # No volumes available, create a new one from a backup snapshot
+                @logger.info "No available web server EBS volumes found"
 
-            @ec2.create_tags({
-                resources: [volume_id],
-                tags: [
-                    { key: "Environment", value: ec2_environment, },
-                    { key: "Cliente", value: "Inetsys", },
-                    { key: "Concepto", value: "Sistemas", },
-                ],
-            })
+                # Search for last backup snapshot, searching by name
+                snapshot_id = ebs_search_last_snapshot("Backup Web server data disk")
 
-            # Wait until EBS volume is available
-            begin
-                @ec2.wait_until(:volume_available, volume_ids:[volume_id]) do |w|
-                    w.interval = 10
-                    w.max_attempts = 18
+                volume_id = if snapshot_id.nil?
+                    # No snapshots available, create a brand new EBS volume
+                    @logger.info "Creating new empty EBS volume for /var/www"
+                    ebs_create_new_volume("Web server data disk", "/var/www", 16)
+                else
+                    # Create new volume from this snapshot and tag it
+                    @logger.info "Creating EBS volume from snapshot #{snapshot_id}"
+                    ebs_create_volume_from_backup(snapshot_id, "Web server data disk", "/var/www")
                 end
-            rescue Aws::Waiters::Errors::WaiterFailed
-                @logger.error "EBS web data volume cannot be created"
             end
 
-            @ec2.attach_volume({
-                volume_id: volume_id,
-                instance_id: ec2_instance_id,
-                device: "/dev/xvdf",
-            })
+            # Attach volume to this EC2 instance
+            ebs_attach_volume(volume_id, '/dev/xvdf')
 
-            # Wait until EBS volume is in use
-            begin
-                @ec2.wait_until(:volume_in_use, volume_ids:[volume_id]) do |w|
-                    w.interval = 5
-                    w.max_attempts = 10
+        end
+    end
+
+    namespace :mysql do
+        desc 'Attach local MySQL /mysqlvol EBS volume.
+    In order, first searches for an existing EBS volume detached from former EC2 instance,
+    that should be shutting down at least. If not, searches for the most recent backup in
+    snapshots. If this also fails, creates an empty new EBS volume'
+        task :attach do
+            @logger.progname = 'EC2'
+
+            if !is_amazon_linux
+                abort "This is not an EC2 instance"
+            end
+
+            # Search for an available web data EBS volume, searching by name
+            # and the same Autoscaling Group as the EC2 instance
+            volume_id = ebs_find_available_volume("MySQL data disk")
+
+            if volume_id.nil?
+                # No volumes available, create a new one from a backup snapshot
+                @logger.info "No available MySQL volumes found"
+
+                # Search for last backup snapshot, searching by name
+                snapshot_id = ebs_search_last_snapshot("Backup MySQL data disk")
+
+                volume_id = if snapshot_id.nil?
+                    # No snapshots available, create a brand new EBS volume
+                    @logger.info "Creating new empty EBS volume for /mysqlvol"
+                    ebs_create_new_volume("MySQL data disk", "/mysqlvol", 16)
+                else
+                    # Create new volume from this snapshot and tag it
+                    @logger.info "Creating EBS volume from snapshot #{snapshot_id}"
+                    ebs_create_volume_from_backup(snapshot_id, "MySQL data disk", "/mysqlvol")
                 end
-            rescue Aws::Waiters::Errors::WaiterFailed
-                @logger.error "EBS web data volume cannot be attached"
             end
 
-            # El problema de lo siguiente es que necesita un permiso demasiado amplio
-            # para ejecutarse
-
-            # @ec2.modify_instance_attribute({
-            #     instance_id: ec2_instance_id,
-            #     block_device_mappings: [
-            #         {
-            #             device_name: "/dev/xvdf",
-            #             ebs: {
-            #                 volume_id: volume_id,
-            #                 delete_on_termination: true,
-            #             },
-            #         },
-            #     ]
-            # })
-      end
+            # Attach MySQL volume to this EC2 instance
+            ebs_attach_volume(volume_id, '/dev/xvdg')
+        end
     end
 
     namespace :eip do

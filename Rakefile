@@ -30,7 +30,7 @@ namespace :chef do
 end
 
 namespace :ec2 do
-    namespace :ebs do
+    namespace :www do
         desc 'Attach /var/www EBS volume.
     In order, first searches for an existing EBS volume detached from former EC2 instance,
     that should be shutting down at least. If not, searches for the most recent backup in

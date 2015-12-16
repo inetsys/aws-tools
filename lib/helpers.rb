@@ -61,7 +61,8 @@ def ebs_create_new_volume(name, mount_point, size=12)
         volume_id = @ec2.create_volume({
             availability_zone: ec2_availability_zone,
             volume_type: 'gp2',
-            size: size
+            size: size,
+            encrypted: false,
         }).volume_id
 
         ebs_tag_volume(volume_id, name, mount_point)
@@ -94,6 +95,7 @@ def ebs_create_volume_from_backup(snapshot_id, name, mount_point)
             w.interval = 10
             w.max_attempts = 18
         end
+
     rescue # Aws::Waiters::Errors::WaiterFailed
         @logger.error "EBS #{name} cannot be created"
         raise

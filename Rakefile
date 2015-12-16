@@ -104,8 +104,12 @@ namespace :ec2 do
                 end
             end
 
+            # First stop MySQL service
+            system('sudo service mysql-default stop')
             # Attach MySQL volume to this EC2 instance
             ebs_attach_volume(volume_id, '/dev/xvdg')
+            # Restart MySQL service
+            system('sudo service mysql-default start')
         end
     end
 

@@ -68,6 +68,46 @@ namespace :ec2 do
             ebs_attach_volume(volume_id, '/dev/xvdf')
 
         end
+
+        desc 'Take /var/www EBS snapshot.
+    Creates a new snapshot of /var/www EBS volume'
+        task :snapshot do
+            @logger.progname = 'EC2'
+
+            if !is_amazon_linux
+                abort "This is not an EC2 instance"
+            end
+
+            volume_id = ebs_attached_volume("/dev/xvdf")
+
+            unless volume_id.nil?
+                # 1. Freeze FS
+                unless fs_freezed = system("sudo fsfreeze --freeze /var/www")
+                    @logger.warn 'Cannot freeze Web data volume, snapshot could be corrupted'
+                else
+                    @logger.info 'Volume /var/www freezed'
+                end
+                begin
+                    # 2. Take snapshot
+                    snapshot_id = ebs_take_snapshot(volume_id, "/dev/xvdf", "/var/www", "Backup Web server data disk")
+                rescue
+                    @logger.error "Error taking /var/www EBS snapshot"
+                else
+                    @logger.info "EBS snapshot #{snapshot_id} finished successfully"
+                ensure
+                    # 3. Unfreeze FS
+                    if fs_freezed
+                        unless system('sudo fsfreeze --unfreeze /var/www')
+                            @logger.error "Cannot unfreeze /var/www, projects will not run properly!"
+                        else
+                            @logger.info 'Volume /var/www unfreezed'
+                        end
+                    end
+                end
+            else
+                @logger.warn "No /var/www EBS volume attached"
+            end
+        end
     end
 
     namespace :mysql do
@@ -110,6 +150,60 @@ namespace :ec2 do
             ebs_attach_volume(volume_id, '/dev/xvdg')
             # Restart MySQL service
             system('sudo service mysql-default start')
+        end
+
+        desc 'Take /mysqlvol EBS snapshot.
+    Creates a new snapshot of /mysqlvol EBS volume'
+        task :snapshot do
+            @logger.progname = 'EC2'
+
+            if !is_amazon_linux
+                abort "This is not an EC2 instance"
+            end
+
+            volume_id = ebs_attached_volume("/dev/xvdf")
+
+            unless volume_id.nil?
+                # 1. Stop mysql server
+                unless mysql_stopped = system('sudo service mysql-default stop')
+                    @logger.warn 'Cannot stop MySQL server, snapshot could be corrupted'
+                else
+                    @logger.info 'MySQL server stopped'
+                end
+                # 2. Freeze FS
+                unless fs_freezed = system("sudo fsfreeze --freeze /mysqlvol")
+                    @logger.warn 'Cannot freeze MySQL data volume, snapshot could be corrupted'
+                else
+                    @logger.info 'Volume /mysqlvol freezed'
+                end
+                # 3. Take snapshot
+                begin
+                    snapshot_id = ebs_take_snapshot(volume_id, "/dev/xvdg", "/mysqlvol", "Backup MySQL data disk")
+                rescue
+                    @logger.error "Error taking /mysqlvol EBS snapshot"
+                else
+                    @logger.info "EBS snapshot #{snapshot_id} finished"
+                ensure
+                    # 4. Unfreeze FS
+                    if fs_freezed
+                        unless system('sudo fsfreeze --unfreeze /mysqlvol')
+                            @logger.error "Cannot unfreeze /mysqlvol, MySQL will not run!"
+                        else
+                            @logger.info 'Volume /mysqlvol unfreezed'
+                        end
+                    end
+                    # 5. Restart mysql server
+                    if mysql_stopped
+                        unless system('sudo service mysql-default start')
+                           @logger.error "Cannot start MySQL after snapshot!"
+                        else
+                            @logger.info 'MySQL server started'
+                        end
+                    end
+                end
+            else
+                @logger.warn "No /mysqlvol EBS volume attached"
+            end
         end
     end
 

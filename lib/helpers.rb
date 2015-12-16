@@ -173,6 +173,34 @@ def ebs_find_available_volume(name)
     volume_id
 end
 
+def ebs_attached_volume(device_name)
+    mapping = @ec2.describe_instances({
+        instance_ids: [ec2_instance_id]
+    }).reservations.first.instances.first.block_device_mappings
+
+    mapping.select{|x| x.device_name == device_name }.first.ebs.volume_id
+end
+
+def ebs_take_snapshot(volume_id, device_name, mount_point, name)
+    snapshot_id = @ec2.create_snapshot({
+        volume_id: volume_id,
+        description: "Backup of #{device_name} volume under #{mount_point}",
+    }).snapshot_id
+    @ec2.create_tags({
+        resources: [snapshot_id],
+        tags: [
+            { key: "Name", value: name, },
+            { key: "Environment", value: ec2_environment, },
+            { key: "Cliente", value: ec2_base_tags[:cliente], },
+            { key: "Concepto", value: ec2_base_tags[:concepto], },
+            { key: "Mount point", value: mount_point, },
+            { key: "StackName", value: ec2_stackname, },
+        ],
+    })
+
+    snapshot_id
+end
+
 def available_eip(stackname)
     mainStack = @cloudformation.describe_stacks(
         stack_name: stackname

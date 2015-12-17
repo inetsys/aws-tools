@@ -30,6 +30,29 @@ namespace :chef do
 end
 
 namespace :ec2 do
+    desc 'Checks main instance on Autoscaling Group.
+    For all the EC2 instances in the same Autoscaling Group, checks if this is
+    the one marked as master instance, which means it is the reference for taking
+    snapshots and other backups'
+    task :is_master do
+        unless is_amazon_linux
+            abort "This is not an EC2 instance"
+        end
+
+        # For right now, as there is only one instance in group, always return true
+        @logger.info 'This is the master EC2 instance'
+        exit 0
+    end
+
+    desc 'Checks if this is production env'
+    task :is_production do
+        unless is_amazon_linux
+            abort "This is not an EC2 instance"
+        end
+
+        exit ec2_environment == 'production'
+    end
+
     namespace :www do
         desc 'Attach /var/www EBS volume.
     In order, first searches for an existing EBS volume detached from former EC2 instance,

@@ -184,7 +184,7 @@ namespace :ec2 do
                 abort "This is not an EC2 instance"
             end
 
-            volume_id = ebs_attached_volume("/dev/xvdf")
+            volume_id = ebs_attached_volume("/dev/xvdg")
 
             unless volume_id.nil?
                 # 1. Stop mysql server

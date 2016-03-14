@@ -53,6 +53,13 @@ namespace :ec2 do
         exit ec2_environment == 'production'
     end
 
+    namespace :watch do
+        desc 'Creates basic Alarms for this instance in Cloudwatch'
+        task :create do
+            @cloudwatch.describe_alarms
+        end
+    end
+
     namespace :www do
         desc 'Attach /var/www EBS volume.
     In order, first searches for an existing EBS volume detached from former EC2 instance,

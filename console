@@ -9,6 +9,7 @@ require 'json'
 require_relative 'lib/awstools'
 require_relative 'lib/ebs'
 require_relative 'lib/eip'
+require_relative 'lib/eni'
 require_relative 'lib/cloudwatch'
 require_relative 'lib/chef'
 
@@ -43,7 +44,6 @@ module CliAWSTools
             AWSTools.configure do |config|
                 config.dryrun = options[:dryrun]
             end
-            puts AWSTools.configuration.inspect
             exit AWSTools.configuration.environment == 'production'
         end
 
@@ -52,6 +52,9 @@ module CliAWSTools
 
         desc "eip SUBCOMMAND [ARGS]", "EIP"
         subcommand "eip", Eip
+
+        desc "eni SUBCOMMAND [ARGS]", "ENI"
+        subcommand "eni", Eni
 
         desc "chef SUBCOMMAND [ARGS]", "Chef"
         subcommand "chef", Chef

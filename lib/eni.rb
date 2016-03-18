@@ -56,7 +56,7 @@ module CliAWSTools
 
         end
 
-        desc 'assign', 'Assign new private IP list'
+        desc 'assign PRIVATE_IPS', 'Assign new private IP list, separated by commas'
         def assign(private_ips)
             AWSTools.configure do |config|
                 config.dryrun = options[:dryrun]
@@ -77,47 +77,103 @@ module CliAWSTools
             # get limits
             case AWSTools.ec2_instance_type
             when 't2.nano', 't2.micro'
-                # two ENIs, two ip max. each
-                AWSTools.ec2.network_interface_id({
-                    network_interface_id: interfaces.first.network_interface_id,
-                    private_ip_addresses: list_ip[0..1].each_with_index.map { |item, index|
-                            Hash[
-                                private_ip_address: item,
-                                primary: index == 0
-                            ]
-                        }
+                # two ENIs, 2 ip max. each
+                # First primary private IP in first ENI (eth0) is fixed and cannot be changed
+                if AWSTools.configuration.dryrun
+                    AWSTools.logger.debug "#assign_private_ip_addresses, network_interface_id = #{interfaces.first.network_interface_id}, private_ip_addresses = #{list_ip[0]}, allow_reassignment = true"
+                else
+                    begin
+                        AWSTools.ec2.unassign_private_ip_addresses({
+                            network_interface_id: interfaces.first.network_interface_id,
+                            private_ip_addresses: [ list_ip[0] ]
+                        })
+                    rescue Aws::EC2::Errors::InvalidParameterValue
+                        AWSTools.logger.debug "Address #{list_ip[0]} not previously assigned"
+                    end
+                    AWSTools.ec2.assign_private_ip_addresses({
+                        network_interface_id: interfaces.first.network_interface_id,
+                        private_ip_addresses: [ list_ip[0] ],
+                        allow_reassignment: true
                     })
-                    allow_reassignment: true
-                })
-                if list_ip.count > 2
+                end
+                if list_ip.count > 1
                     secondary_eni = AWSTools.ec2.create_network_interface({
-                        dry_run: AWS.configuration.dryrun,
+                        dry_run: AWSTools.configuration.dryrun,
                         subnet_id: interfaces.first.subnet_id,
                         description: "Secondary ENI for Vpar",
-                        groups: interfaces.first.groups,
-                        private_ip_addresses: list_ip[2..3].each_with_index.map { |item, index|
+                        groups: interfaces.first.groups.map {|g| g.group_id },
+                        private_ip_addresses: list_ip[1..2].each_with_index.map { |item, index|
                             Hash[
                                 private_ip_address: item,
                                 primary: index == 0
                             ]
                         }
+                    }).network_interface
+                    AWSTools.ec2.attach_network_interface({
+                        dry_run: AWSTools.configuration.dryrun,
+                        network_interface_id: secondary_eni.network_interface_id,
+                        instance_id: AWSTools.ec2_instance_id,
+                        device_index: 1
                     })
-            # when 't2.small'
+                end
+            when 't2.small'
+                # two ENIs, 4 ip max. each
+                # First primary private IP in first ENI (eth0) is fixed and cannot be changed
+                if AWSTools.configuration.dryrun
+                    AWSTools.logger.debug "#assign_private_ip_addresses, network_interface_id = #{interfaces.first.network_interface_id}, private_ip_addresses = #{list_ip[0]}, allow_reassignment = true"
+                else
+                    begin
+                        AWSTools.ec2.unassign_private_ip_addresses({
+                            network_interface_id: interfaces.first.network_interface_id,
+                            private_ip_addresses: list_ip[0..2]
+                        })
+                    rescue Aws::EC2::Errors::InvalidParameterValue
+                        AWSTools.logger.debug "Addresses #{list_ip[0..2]} not previously assigned"
+                    end
+                    AWSTools.ec2.assign_private_ip_addresses({
+                        network_interface_id: interfaces.first.network_interface_id,
+                        private_ip_addresses: list_ip[0..2],
+                        allow_reassignment: true
+                    })
+                end
+                if list_ip.count > 3
+                    secondary_eni = AWSTools.ec2.create_network_interface({
+                        dry_run: AWSTools.configuration.dryrun,
+                        subnet_id: interfaces.first.subnet_id,
+                        description: "Secondary ENI for Vpar",
+                        groups: interfaces.first.groups.map {|g| g.group_id },
+                        private_ip_addresses: list_ip[3..6].each_with_index.map { |item, index|
+                            Hash[
+                                private_ip_address: item,
+                                primary: index == 0
+                            ]
+                        }
+                    }).network_interface
+                    AWSTools.ec2.attach_network_interface({
+                        dry_run: AWSTools.configuration.dryrun,
+                        network_interface_id: secondary_eni.network_interface_id,
+                        instance_id: AWSTools.ec2_instance_id,
+                        device_index: 1
+                    })
+                end
             else
-                # at least four max. ip each
-                AWSTools.ec2.network_interface_id({
-                    network_interface_id: interfaces.first.network_interface_id,
-                    private_ip_addresses: list_ip[0..3].each_with_index.map { |item, index|
-                            Hash[
-                                private_ip_address: item,
-                                primary: index == 0
-                            ]
-                        }
+                # at least 6 max. ip each
+                # First primary private IP in first ENI (eth0) is fixed and cannot be changed
+                begin
+                    AWSTools.ec2.unassign_private_ip_addresses({
+                        network_interface_id: interfaces.first.network_interface_id,
+                        private_ip_addresses: list_ip[0..5]
                     })
+                rescue Aws::EC2::Errors::InvalidParameterValue
+                    AWSTools.logger.debug "Addresses #{list_ip[0..5]} not previously assigned"
+                end
+                AWSTools.ec2.assign_private_ip_addresses({
+                    dry_run: AWS.configuration.dryrun,
+                    network_interface_id: interfaces.first.network_interface_id,
+                    private_ip_addresses: list_ip[0..5],
                     allow_reassignment: true
                 })
             end
-
 
         end
 

@@ -64,9 +64,11 @@ module CliAWSTools
                 end
 
                 # get network_interface_id
-                addresses = AWSTools.ec2.describe_instances({
+                interfaces = AWSTools.ec2.describe_instances({
                     instance_ids: [AWSTools.ec2_instance_id]
-                }).reservations[0].instances[0].network_interfaces.map{|x|
+                }).reservations[0].instances[0].network_interfaces
+
+                addresses = interfaces.map{|x|
                     x.private_ip_addresses.map{|y|
                         {
                             'nid' => x.network_interface_id,
@@ -75,8 +77,9 @@ module CliAWSTools
                     }
                 }.flatten
                 if options[:privateip].nil?
-                    private_ip_address = addresses.first['ip']
-                    network_interface_id = addresses.first['nid']
+                    # primary private ip
+                    private_ip_address = interfaces.first.private_ip_address
+                    network_interface_id = interfaces.first.network_interface_id
                 else
                     private_ip_address = options[:privateip]
                     network_interface_id = addresses.select{|x| x['ip'] == options[:privateip]}.first['nid']

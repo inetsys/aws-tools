@@ -52,6 +52,15 @@ module AWSTools
         end
     end
 
+    def self.ec2_private_ip
+        if is_amazon_linux
+            uri = URI('http://169.254.169.254/latest/meta-data/local-ipv4')
+            Net::HTTP.get(uri)
+        else
+            Kernel::abort "This is not an EC2 instance"
+        end
+    end
+
     def self.credentials
         @credentials ||= if is_amazon_linux
             Aws::InstanceProfileCredentials.new

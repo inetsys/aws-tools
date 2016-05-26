@@ -47,6 +47,12 @@ module CliAWSTools
             exit AWSTools.configuration.environment == 'production'
         end
 
+        desc 'version', 'Get version'
+        def version
+            require 'semver'
+            puts SemVer.find.format("%M.%m.%p")
+        end
+
         desc "ebs SUBCOMMAND [ARGS]", "EBS"
         subcommand "ebs", Ebs
 

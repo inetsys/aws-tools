@@ -1,0 +1,71 @@
+#!/bin/env ruby
+
+require 'thor'
+require 'logger'
+require 'syslog/logger'
+require 'aws-sdk'
+require 'fileutils'
+require 'json'
+require_relative 'lib/awstools'
+require_relative 'lib/ebs'
+require_relative 'lib/eip'
+require_relative 'lib/eni'
+require_relative 'lib/cloudwatch'
+require_relative 'lib/chef'
+
+# do not color if running from cfn-init
+require 'logger/colors' unless `ps aux | grep cfn-init | grep -v grep` != ""
+
+module CliAWSTools
+
+    class MainCli < Thor
+        include AWSTools
+
+        class_option :dryrun, :type => :boolean, :default => false, :aliases => '-n'
+        class_option :verbose, :type => :boolean, :default => false, :aliases => '-v'
+
+        desc 'is-master', 'Indica si esta instancia es la maestra'
+        long_desc <<-LONGDESC
+        Checks main instance on Autoscaling Group.
+        For all the EC2 instances in the same Autoscaling Group, checks if this is
+        the one marked as master instance, which means it is the reference for taking
+        snapshots and other backups'
+        LONGDESC
+        def is_master
+            AWSTools.configure do |config|
+                config.dryrun = options[:dryrun]
+            end
+            # For right now, as there is only one instance in group, always return true
+            true
+        end
+
+        desc 'is-production', 'Checks if this is production env'
+        def is_production
+            AWSTools.configure do |config|
+                config.dryrun = options[:dryrun]
+            end
+            exit AWSTools.configuration.environment == 'production'
+        end
+
+        desc 'version', 'Get version'
+        def version
+            require 'semver'
+            puts SemVer.find.format("%M.%m.%p")
+        end
+
+        desc "ebs SUBCOMMAND [ARGS]", "EBS"
+        subcommand "ebs", Ebs
+
+        desc "eip SUBCOMMAND [ARGS]", "EIP"
+        subcommand "eip", Eip
+
+        desc "eni SUBCOMMAND [ARGS]", "ENI"
+        subcommand "eni", Eni
+
+        desc "chef SUBCOMMAND [ARGS]", "Chef"
+        subcommand "chef", Chef
+
+    end
+
+    MainCli.start(ARGV)
+end

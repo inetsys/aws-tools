@@ -294,6 +294,7 @@ module AWSTools
             volume_id = volumes.first.volume_id
 
             # wait until EBS volume is available
+            logger.info "Found volume #{volume_id}, waiting availability"
             begin
                 ec2.wait_until(:volume_available, volume_ids:[volume_id]) do |w|
                     w.interval = 10

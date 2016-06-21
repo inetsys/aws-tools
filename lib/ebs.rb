@@ -104,5 +104,42 @@ module CliAWSTools
             end
         end
 
+        desc 'delete-snapshot', 'Delete old EBS volume snapshots'
+        option :name, :type => :string, :required => true
+        option :days, :type => :numeric, :default => 7
+        def delete_snapshot
+            AWSTools.configure do |config|
+                config.dryrun = options[:dryrun]
+                config.verbose = options[:verbose]
+            end
+            AWSTools.logger.progname = 'EC2'
+            AWSTools.logger.level = Logger::DEBUG if options[:verbose]
+
+            unless AWSTools.is_amazon_linux
+                AWSTools.abort "This is not an EC2 instance"
+            end
+
+            snapshots = AWSTools.ec2.describe_snapshots({
+                filters: [
+                    {
+                        name: "tag:Name",
+                        values: ["Backup #{options[:name]}"],
+                    },
+                    {
+                        name: "tag:StackName",
+                        values: [AWSTools.configuration.stackname]
+                    }
+                ],
+            }).snapshots.select {|x|
+                x.start_time < (Time.now - options[:days] * 24 * 60 * 60)
+            }.each {|x|
+                AWSTools.ec2.delete_snapshot({
+                    dry_run: options[:dryrun],
+                    snapshot_id: x.snapshot_id
+                })
+                AWSTools.logger.info "Deleted snapshot #{x.snapshot_id} (#{x.start_time})"
+            }
+        end
+
     end
 end

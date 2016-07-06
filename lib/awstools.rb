@@ -132,19 +132,8 @@ module AWSTools
             }).tags
 
             @tags = Hash[current_tags.map{|t| [t.key, t.value]}]
-            @stackname = tags['aws:cloudformation:stack-name'] || 'Staging-Web'
+            @stackname = tags['aws:cloudformation:stack-name'] || tags['Stack'] || 'Staging-Web'
             @environment = tags['Environment']
-            # begin
-            #     @stackname = current_tags.select{|t| t.key=='aws:cloudformation:stack-name'}.first.value
-            # rescue
-            #     raise "There is no aws:cloudformation:stack-name tag in this instance #{ec2_instance_id}"
-            # end
-
-            # @tags = {
-            #     'Environment' => begin current_tags.select{|t| t.key=='Environment'}.first.value rescue 'staging' end,
-            #     'Cliente' => begin current_tags.select{|t| t.key=='Cliente'}.first.value rescue 'Inetsys' end,
-            #     'Concepto' => begin current_tags.select{|t| t.key=='Concepto'}.first.value rescue 'Sistemas' end
-            # }
         end
 
     end

@@ -74,11 +74,15 @@ module CliAWSTools
 
             unless volume_id.nil?
                 # 1. Freeze FS
-                unless fs_freezed = system("sudo fsfreeze --freeze #{options[:mount_point]}")
-                    # TODO try to unfreeze?
-                    AWSTools.logger.warn "Cannot freeze #{options[:mount_point]}, snapshot could be corrupted"
+                if AWSTools.configuration.dryrun
+                    AWSTools.logger.info "[DryRun] Freeze FS under #{options[:mount_point]}"
                 else
-                    AWSTools.logger.info "Volume #{options[:mount_point]} freezed"
+                    unless fs_freezed = system("sudo fsfreeze --freeze #{options[:mount_point]}")
+                        # TODO try to unfreeze?
+                        AWSTools.logger.warn "Cannot freeze #{options[:mount_point]}, snapshot could be corrupted"
+                    else
+                        AWSTools.logger.info "Volume #{options[:mount_point]} freezed"
+                    end
                 end
 
                 begin
@@ -90,12 +94,16 @@ module CliAWSTools
                     AWSTools.logger.info "EBS snapshot #{snapshot_id} finished successfully"
                 ensure
                     # 3. Unfreeze FS
-                    status = system("sudo fsfreeze --unfreeze #{options[:mount_point]}")
-                    if fs_freezed
-                        if status
-                            AWSTools.logger.info "Volume #{options[:mount_point]} unfreezed"
-                        else
-                            AWSTools.logger.error "Cannot unfreeze #{options[:mount_point]}, projects will not run properly!"
+                    if AWSTools.configuration.dryrun
+                        AWSTools.logger.info "[DryRun] Unfreeze FS under #{options[:mount_point]}"
+                    else
+                        status = system("sudo fsfreeze --unfreeze #{options[:mount_point]}")
+                        if fs_freezed
+                            if status
+                                AWSTools.logger.info "Volume #{options[:mount_point]} unfreezed"
+                            else
+                                AWSTools.logger.error "Cannot unfreeze #{options[:mount_point]}, projects will not run properly!"
+                            end
                         end
                     end
                 end

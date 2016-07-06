@@ -47,6 +47,14 @@ module CliAWSTools
             exit AWSTools.configuration.environment == 'production'
         end
 
+        desc 'is-staging', 'Checks if this is staging env'
+        def is_staging
+            AWSTools.configure do |config|
+                config.dryrun = options[:dryrun]
+            end
+            exit AWSTools.configuration.environment == 'staging'
+        end
+
         desc 'version', 'Get version'
         def version
             require 'semver'
